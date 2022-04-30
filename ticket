@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+import "./ERC721A.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract conferenceTickets is ERC721A, Ownable {
+
+    address immutable _factory;
+    uint256 immutable _maxSupply;
+    uint256 public immutable _ticketPrice;
+    string private _baseTokenURI;
+
+    constructor(string memory name, string memory symbol, address factory_, uint256 maxSupply_, uint256 ticketPrice_, string memory baseTokenURI_) ERC721A(name, symbol){
+        _factory = factory_;
+        _maxSupply = maxSupply_;
+        _ticketPrice = ticketPrice_;
+        _baseTokenURI = baseTokenURI_;
+    }
+
+    function mint(uint256 quantity, address buyer) external {
+        require(msg.sender == _factory, "unathorized");
+        require(totalSupply() + quantity <= _maxSupply, "not enough tickets left");
+        _safeMint(buyer, quantity);
+    }
+
+
+    function _baseURI() internal view virtual override returns(string memory){
+        return _baseTokenURI;
+    }
+}

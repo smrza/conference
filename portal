@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: MIT
+
+//vlastnik contractu => vytvorit NFT ticket contracty
+//vlastnici puvodniho dobbyXblock NFT maji slevu na ticket
+
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./dobbyblock22.sol";
+import "./conferenceTickets.sol";
+
+contract conferencePortal is Ownable{
+    IERC20 immutable _token;
+    dobbyblock22 immutable _NFT;
+    
+    constructor(address NFT_, address token_){
+        _token = IERC20(token_);
+        _NFT = dobbyblock22(NFT_);
+    }
+
+    function buyTicket(address ticketContract_, uint256 quantity) external {
+        uint256 price = conferenceTickets(ticketContract_)._ticketPrice() * quantity;
+        address buyer = msg.sender;
+        conferenceTickets(ticketContract_).mint(quantity, buyer);
+
+        require(_token.allowance(buyer, address(this)) >= price, "Allowance too low.");
+        require(_token.transferFrom(buyer, address(this), price),"Token transfer failed");
+    }
+
+    mapping(uint256 => mapping(address => bool)) public NFTused;
+
+    function buyWithDiscount(address ticketContract_) external {        
+        require(_NFT.balanceOf(msg.sender) > 0, "cannot proceed");
+        bool proceed;
+        uint256 tokenId;
+        for(uint256 i = 0; i < _NFT.balanceOf(msg.sender); i++){
+            tokenId = _NFT.tokenOfOwnerByIndex(msg.sender, i);
+            if(!NFTused[tokenId][ticketContract_]){
+                proceed = true;
+                break;
+            }
+        }
+        require(proceed, "no NFT for discount");
+        uint256 price = conferenceTickets(ticketContract_)._ticketPrice() * 80 / 100;
+        NFTused[tokenId][ticketContract_] = true;
+        address buyer = msg.sender;
+        conferenceTickets(ticketContract_).mint(1, buyer);
+
+        require(_token.allowance(buyer, address(this)) >= price, "Allowance too low.");
+        require(_token.transferFrom(buyer, address(this), price),"Token transfer failed");
+    } 
+
+    function withdrawConferenceToken(uint256 amount) external onlyOwner {
+        require(_token.transfer(msg.sender, amount), "Transfer failed.");
+    }
+
+    // funciton determineAvailability() external view returns(bool){
+
+    // }
+
+    conferenceTickets[] private _conferenceTickets;
+    mapping(bytes32 => uint256) _conferenceTicketsIds;
+
+    //uint256 id_, string memory name, string memory symbol, address factory_, uint256 maxSupply_, uint256 ticketPrice_, string memory baseTokenURI_
+    function deployTicketContract(
+        bytes32 hashId,
+        string memory name, 
+        string memory symbol, 
+        uint256 maxSupply, 
+        uint256 ticketPrice, 
+        string memory baseTokenURI
+    ) external onlyOwner {
+        conferenceTickets ct = new conferenceTickets(
+            name,
+            symbol,
+            address(this),
+            maxSupply,
+            ticketPrice,
+            baseTokenURI
+        );
+        _conferenceTicketsIds[hashId] = _conferenceTickets.length;
+        _conferenceTickets.push(ct);
+    }
+
+    function getAllTicketContracts()
+        public
+        view
+        returns (conferenceTickets[] memory)
+    {
+        return _conferenceTickets;
+    }
+
+    function getTicketContract(bytes32 hashId) public view returns(conferenceTickets){
+        uint256 index = _conferenceTicketsIds[hashId];
+        return _conferenceTickets[index];
+    }
+
+    function getTicketContractAddress(bytes32 hashId) external view returns(address){
+        uint256 index = _conferenceTicketsIds[hashId];
+        return address(_conferenceTickets[index]);
+    }
+
+    //vlastnici NFT mohou navrhnout workshop
+    //hlasovat mohou drzitele conferenceTokenu
+
+    //     function proposeWorkshop() external {
+    //     //todo
+    // }
+
+    // function voteForWorkshop() external ensureMembership{
+    //     //todo
+    // }
+
+
+    //     struct proposal{
+    //     string workshopName;
+    //     string workshopDescription;
+    //     int256 votes;
+    // }
+
+    // modifier ensureMembership(){
+    //     require(_token.balanceOf(msg.sender) > 100, "not enough tokens to proceed");
+    //     _; 
+    // }
+
+    // mapping(uint256 => proposal) proposals;
+    // uint256[] proposalIds;
+}

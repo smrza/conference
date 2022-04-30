@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./ERC721A.sol";
+
+contract dobbyblock22 is ERC721A, Ownable {
+    constructor() ERC721A("DOBBY X BLOCK22", "DB22"){}
+
+    mapping(address => bool) public minted;
+    uint256 endTime = 1651399200;
+    bool airdropDone;
+
+    function mint() external {
+        require(!minted[msg.sender], "You already minted your tokens.");
+        require(block.timestamp < endTime, "Conference over.");
+        _safeMint(msg.sender, 1);
+        // minted[msg.sender] = true;
+    }
+
+    function airdrop(address[] memory attendees) external onlyOwner{
+        require(!airdropDone, "already airdropped");
+        for(uint256 i = 0; i<attendees.length; i++){
+            _safeMint(attendees[i], 1);
+        }
+        airdropDone = true;
+    }
+
+    string private _baseTokenURI = "replaceME/"; //TODO
+
+    function _baseURI() internal view virtual override returns(string memory){
+        return _baseTokenURI;
+    }
+
+    function setBaseURI(string calldata baseURI) external onlyOwner{
+        _baseTokenURI = baseURI;
+    }
+}
